@@ -29,7 +29,6 @@ RUN cat > /usr/local/bin/docker-entrypoint.sh <<'EOF'
 #!/usr/bin/env bash
 set -e
 socat TCP-LISTEN:1456,fork,reuseaddr TCP:127.0.0.1:1455 &
-socat TCP-LISTEN:51122,fork,reuseaddr TCP:127.0.0.1:51121 &
 exec "$@"
 EOF
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh

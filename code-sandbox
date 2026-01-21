@@ -35,7 +35,6 @@ args=(
   --gpus all
   --user "$(id -u):$(id -g)"
   -p "127.0.0.1:1455:1456"
-  -p "127.0.0.1:51121:51122"
   -w /workspace
   -v "${OPENCODE_CONFIG:-opencode_config}:${CONTAINER_HOME}/.config/opencode"
   -v "${OPENCODE_SHARE:-opencode_share}:${CONTAINER_HOME}/.local/share/opencode"
