@@ -9,9 +9,10 @@ if [[ -f .env ]]; then
 fi
 
 # Build image if missing (comment out if you always build separately)
-CONTAINER_IMAGE="ml-devel:cuda-${CUDA_TAG}"
+CONTAINER_IMAGE="code-sandbox:cuda-${CUDA_TAG}"
 if ! docker image inspect "$CONTAINER_IMAGE" >/dev/null 2>&1; then
   docker build \
+    --no-cache \
     --build-arg CUDA_TAG="${CUDA_TAG}" \
     -t "${CONTAINER_IMAGE}" \
     .
@@ -30,16 +31,18 @@ fi
 
 args=(
   run --rm -it
-  --name "ml-devel"
+  --name "code-sandbox"
   --gpus all
   --user "$(id -u):$(id -g)"
-  -p "127.0.0.1:${HOST_OAUTH_PORT:-1455}:1455"
+  -p "127.0.0.1:1455:1456"
+  -p "127.0.0.1:51121:51122"
   -w /workspace
   -v "${OPENCODE_CONFIG:-opencode_config}:${CONTAINER_HOME}/.config/opencode"
   -v "${OPENCODE_SHARE:-opencode_share}:${CONTAINER_HOME}/.local/share/opencode"
   -v "${OPENCODE_CACHE:-opencode_cache}:${CONTAINER_HOME}/.cache/opencode"
-  -v "${UV_CACHE:-uv_cache}:${CONTAINER_HOME}/.cache/uv"
+  -v "${UV_CONFIG:-uv_config}:${CONTAINER_HOME}/.config/uv"
   -v "${UV_SHARE:-uv_share}:${CONTAINER_HOME}/.local/share/uv"
+  -v "${UV_CACHE:-uv_cache}:${CONTAINER_HOME}/.cache/uv"
   -v "${WORKSPACE}:/workspace"
 )
 
