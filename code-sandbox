@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Auto-load .env if present
+if [[ -f .env ]]; then
+  set -a
+  source .env
+  set +a
+fi
+
+# Build image if missing (comment out if you always build separately)
+CONTAINER_IMAGE="ml-devel:cuda-${CUDA_TAG}"
+if ! docker image inspect "$CONTAINER_IMAGE" >/dev/null 2>&1; then
+  docker build \
+    --build-arg CUDA_TAG="${CUDA_TAG}" \
+    -t "${CONTAINER_IMAGE}" \
+    .
+fi
+
+# Set container home directory
+CONTAINER_HOME=/home/ubuntu
+
+
+# Create temporary session directory with full permissions
+if [ -z ${WORKSPACE} ]; then
+  WORKSPACE="$(mktemp -d /tmp/ml_devel_session-XXXXXX)" || return 1
+  chmod 1777 "$WORKSPACE" || return 1
+  echo $WORKSPACE
+fi
+
+args=(
+  run --rm -it
+  --name "ml-devel"
+  --gpus all
+  --user "$(id -u):$(id -g)"
+  -p "127.0.0.1:${HOST_OAUTH_PORT:-1455}:1455"
+  -w /workspace
+  -v "${OPENCODE_CONFIG:-opencode_config}:${CONTAINER_HOME}/.config/opencode"
+  -v "${OPENCODE_SHARE:-opencode_share}:${CONTAINER_HOME}/.local/share/opencode"
+  -v "${OPENCODE_CACHE:-opencode_cache}:${CONTAINER_HOME}/.cache/opencode"
+  -v "${UV_CACHE:-uv_cache}:${CONTAINER_HOME}/.cache/uv"
+  -v "${UV_SHARE:-uv_share}:${CONTAINER_HOME}/.local/share/uv"
+  -v "${WORKSPACE}:/workspace"
+)
+
+# Mount projects passed as args
+for p in "$@"; do
+  p="${p/#\~/$HOME}"
+  if [[ ! -d "$p" ]]; then
+    echo "Error: not a directory: $p" >&2
+    exit 1
+  fi
+
+  abs="$(cd "$p" && pwd -P)"
+  name="$(basename "$abs")"
+
+  # Prevent accidental collisions (two projects with same basename)
+  if [[ " ${args[*]} " == *":/workspace/${name} "* ]]; then
+    echo "Error: duplicate mount name /workspace/${name} (two paths share basename '${name}')" >&2
+    echo "Tip: rename one folder or I can modify the script to mount with unique names." >&2
+    exit 1
+  fi
+
+  args+=(-v "${abs}:${CONTAINER_HOME}/${name}")
+done
+
+exec docker "${args[@]}" "${CONTAINER_IMAGE}" bash
