@@ -8,40 +8,159 @@ if [[ -f .env ]]; then
   set +a
 fi
 
-# Build image if missing (comment out if you always build separately)
-CONTAINER_IMAGE="code-sandbox:cuda-${CUDA_TAG}"
-if ! docker image inspect "$CONTAINER_IMAGE" >/dev/null 2>&1; then
-  docker build \
-    --no-cache \
-    --build-arg CUDA_TAG="${CUDA_TAG}" \
+docker-label() {
+  docker inspect --format='{{ index .Config.Labels "'"${2}"'" }}' "${1}" 2>/dev/null
+}
+
+docker-port-busy() {
+    local HOST=$1
+    local PORT=$2
+    docker ps --format '{{.Ports}}' | grep -qE "(^|[ ,])${HOST}:${PORT}->" && return 0
+    return 1
+}
+
+CONTAINER_IMAGE="code-sandbox"
+
+usage() {
+  cat <<'EOF'
+Usage: code-sandbox [options] [project-path...]
+
+Options:
+  -i, --image NAME  Use a specific Docker image name
+  -h, --help        Show this help text
+EOF
+}
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -i|--image)
+      if [[ -z "${2-}" ]]; then
+        echo "Error: --image requires a value" >&2
+        exit 1
+      fi
+      CONTAINER_IMAGE="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      POSITIONAL+=("$@")
+      break
+      ;;
+    *)
+      POSITIONAL+=("$1")
+      shift
+      ;;
+  esac
+done
+if (( ${#POSITIONAL[@]} )); then
+  set -- "${POSITIONAL[@]}"
+else
+  set --
+fi
+
+if ! docker image inspect "${CONTAINER_IMAGE}" >/dev/null 2>&1; then
+  whiptail --title "Code Sandbox" --yesno "Install Code Sandbox?" 8 78 || { echo "User exit"; exit; }
+
+  BASE_IMAGE="ubuntu:24.04"
+
+  BUILD_ARGS=(
+    build
+    --no-cache
+    --build-arg UID=$(id -u)
+    --build-arg GID=$(id -g)
+  )
+
+  CHOICES=$(whiptail --title "Code Sandbox" --checklist \
+      "Choose your tools" 20 49 12 \
+      "cuda" "Nvidia CUDA" OFF \
+      "uv" "Python virtual environment" OFF \
+      "opencode" "opensource llm cli" OFF \
+      "claude-code" "anthropic llm cli" OFF \
+      "codex" "openai llm cli" OFF \
+      "latex" "LaTeX" OFF 3>&1 1>&2 2>&3) || { echo "User exit"; exit; }
+
+  for CHOICE in $CHOICES; do
+    CHOICE="${CHOICE%\"}"
+    CHOICE="${CHOICE#\"}"
+    case $CHOICE in
+      "cuda")
+          BUILD_ARGS+=( --build-arg CUDA_INSTALL=true )
+          BASE_IMAGE="nvidia/cuda:${CUDA_TAG}-devel-ubuntu24.04"
+          ;;
+      "uv")
+          BUILD_ARGS+=( --build-arg UV_INSTALL=true )
+          ;;
+      "opencode")
+          BUILD_ARGS+=( --build-arg OPENCODE_INSTALL=true )
+          ;;
+      "claude-code")
+          BUILD_ARGS+=( --build-arg CLAUDECODE_INSTALL=true )
+          ;;
+      "codex")
+          BUILD_ARGS+=( --build-arg CODEX_INSTALL=true )
+          ;;
+      "latex")
+          BUILD_ARGS+=( --build-arg LATEX_INSTALL=true )
+          ;;
+    esac
+  done
+
+  BUILD_ARGS+=(
+    --build-arg BASE_IMAGE=${BASE_IMAGE}
+  )
+
+  docker "${BUILD_ARGS[@]}" \
     -t "${CONTAINER_IMAGE}" \
     .
 fi
 
-# Set container home directory
 CONTAINER_HOME=/home/ubuntu
 
+RUN_ARGS=(
+  run
+  --rm
+  -it
+  --name "code-sandbox_$(uuidgen | cut -d- -f1)"
+)
 
-# Create temporary session directory with full permissions
-if [ -z ${WORKSPACE} ]; then
+[ $(docker-label ${CONTAINER_IMAGE} cuda) = true ] && \
+  RUN_ARGS+=(
+    --gpus all
+  )
+
+[ $(docker-label ${CONTAINER_IMAGE} uv) = true ] && \
+  RUN_ARGS+=(
+    -v "${UV_CONFIG:-uv_config}:${CONTAINER_HOME}/.config/uv"
+    -v "${UV_SHARE:-uv_share}:${CONTAINER_HOME}/.local/share/uv"
+    -v "${UV_CACHE:-uv_cache}:${CONTAINER_HOME}/.cache/uv"
+  )
+
+HOST=127.0.0.1
+AUTH_PORT=1455
+while docker-port-busy "$HOST" "$AUTH_PORT"; do
+    AUTH_PORT=$((AUTH_PORT+1))
+done
+
+[ $(docker-label ${CONTAINER_IMAGE} opencode)=true ] && \
+  RUN_ARGS+=(
+    -p "${HOST}:${AUTH_PORT}:1456"
+    -v "${OPENCODE_CONFIG:-opencode_config}:${CONTAINER_HOME}/.config/opencode"
+    -v "${OPENCODE_SHARE:-opencode_share}:${CONTAINER_HOME}/.local/share/opencode"
+    -v "${OPENCODE_CACHE:-opencode_cache}:${CONTAINER_HOME}/.cache/opencode"
+  )
+
+if [[ -z "${WORKSPACE-}" ]]; then
   WORKSPACE="$(mktemp -d /tmp/ml_devel_session-XXXXXX)" || return 1
   chmod 1777 "$WORKSPACE" || return 1
   echo $WORKSPACE
 fi
-
-args=(
-  run --rm -it
-  --name "code-sandbox"
-  --gpus all
-  --user "$(id -u):$(id -g)"
-  -p "127.0.0.1:1455:1456"
+RUN_ARGS+=(
   -w /workspace
-  -v "${OPENCODE_CONFIG:-opencode_config}:${CONTAINER_HOME}/.config/opencode"
-  -v "${OPENCODE_SHARE:-opencode_share}:${CONTAINER_HOME}/.local/share/opencode"
-  -v "${OPENCODE_CACHE:-opencode_cache}:${CONTAINER_HOME}/.cache/opencode"
-  -v "${UV_CONFIG:-uv_config}:${CONTAINER_HOME}/.config/uv"
-  -v "${UV_SHARE:-uv_share}:${CONTAINER_HOME}/.local/share/uv"
-  -v "${UV_CACHE:-uv_cache}:${CONTAINER_HOME}/.cache/uv"
   -v "${WORKSPACE}:/workspace"
 )
 
@@ -57,13 +176,13 @@ for p in "$@"; do
   name="$(basename "$abs")"
 
   # Prevent accidental collisions (two projects with same basename)
-  if [[ " ${args[*]} " == *":/workspace/${name} "* ]]; then
+  if [[ " ${RUN_ARGS[*]} " == *":/workspace/${name} "* ]]; then
     echo "Error: duplicate mount name /workspace/${name} (two paths share basename '${name}')" >&2
     echo "Tip: rename one folder or I can modify the script to mount with unique names." >&2
     exit 1
   fi
 
-  args+=(-v "${abs}:${CONTAINER_HOME}/${name}")
+  RUN_ARGS+=(-v "${abs}:${CONTAINER_HOME}/${name}")
 done
 
-exec docker "${args[@]}" "${CONTAINER_IMAGE}" bash
+exec docker "${RUN_ARGS[@]}" "${CONTAINER_IMAGE}" bash

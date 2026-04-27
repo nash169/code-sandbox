@@ -1,37 +1,88 @@
-# syntax=docker/dockerfile:1
-ARG CUDA_TAG=13.1.0
-FROM nvidia/cuda:${CUDA_TAG}-devel-ubuntu24.04
+ARG UID=1000
+ARG GID=1000
 
+ARG BASE_IMAGE=ubuntu:24.04
+FROM ${BASE_IMAGE}
+
+ARG CUDA_INSTALL=false
+LABEL cuda=$CUDA_INSTALL
 
 ENV DEBIAN_FRONTEND=noninteractive
 # ENV PATH="${HOME}/.local/bin:${PATH}"
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt update && apt install -y --no-install-recommends \
     ca-certificates \
     curl \
     socat \
     iproute2 \
+    python3 \
+    python3-pip \
+    git \
   && rm -rf /var/lib/apt/lists/*
 
-USER ubuntu
-WORKDIR /home/ubuntu
+ARG LATEX_INSTALL=false
+LABEL latex=$LATEX_INSTALL
 
-RUN mkdir -p .config/opencode .cache/opencode .local/share/opencode
-ENV OPENCODE_DISABLE_AUTOUPDATE=1
-RUN curl -fsSL https://opencode.ai/install | bash
+ARG OPENCODE_INSTALL=false
+LABEL opencode=$OPENCODE_INSTALL
+ENV OPENCODE_INSTALL=${OPENCODE_INSTALL}
 
-RUN mkdir -p .config/uv .cache/uv .local/share/uv
-RUN curl -fsSL https://astral.sh/uv/install.sh | sh
+ARG CLAUDECODE_INSTALL=false
+LABEL claudecode=$CLAUDECODE_INSTALL
 
-# OAuth callback helper (host localhost:1455 -> container :1455 -> loopback :1455)
-USER root
+ARG CODEX_INSTALL=false
+LABEL codex=$CODEX_INSTALL
+
 RUN cat > /usr/local/bin/docker-entrypoint.sh <<'EOF'
 #!/usr/bin/env bash
 set -e
-socat TCP-LISTEN:1456,fork,reuseaddr TCP:127.0.0.1:1455 &
+
+# OAuth callback helper (host localhost:1455 -> container :1455 -> loopback :1455)
+if [ "${OPENCODE_INSTALL}" = "true" ]; then
+  socat TCP-LISTEN:1456,fork,reuseaddr TCP:127.0.0.1:1455 &
+fi
+
 exec "$@"
 EOF
+
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+RUN if ! getent group ubuntu >/dev/null; then \
+      groupadd --gid "${GID}" ubuntu; \
+    fi && \
+    if ! id -u ubuntu >/dev/null 2>&1; then \
+      useradd --uid "${UID}" --gid ubuntu --create-home --shell /bin/bash ubuntu; \
+    fi && \
+    mkdir -p /home/ubuntu && chown -R ubuntu:ubuntu /home/ubuntu
+
+USER ubuntu
+WORKDIR /home/ubuntu
+ENV HOME=/home/ubuntu
+ENV PATH="/home/ubuntu/.local/bin:${PATH}"
+
+ARG UV_INSTALL=false
+LABEL uv=$UV_INSTALL
+RUN if [ "$UV_INSTALL" = "true" ]; then \
+      mkdir -p .config/uv .cache/uv .local/share/uv && \
+      curl -fsSL https://astral.sh/uv/install.sh | sh; \
+    fi
+
+RUN if [ "$OPENCODE_INSTALL" = "true" ]; then \
+      mkdir -p .config/opencode .cache/opencode .local/share/opencode && \
+      curl -fsSL https://opencode.ai/install | env OPENCODE_DISABLE_AUTOUPDATE=1 bash; \
+    fi
+
+RUN if [ "$CLAUDECODE_INSTALL" = "true" ]; then \
+      curl -fsSL https://claude.ai/install.sh | bash; \
+    fi
+
+RUN if [ "$CODEX_INSTALL" = "true" ]; then \
+      mkdir -p .local/bin && \
+      export NVM_DIR="$HOME/.nvm" && \
+      curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash && \
+      bash -lc '. "$HOME/.nvm/nvm.sh" && nvm install --lts && npm i -g @openai/codex && for bin in node npm npx codex; do ln -sf "$NVM_BIN/$bin" "$HOME/.local/bin/$bin"; done'; \
+    fi
+
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["bash"]
