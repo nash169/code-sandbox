@@ -4,10 +4,9 @@ Code Sandbox builds and runs a disposable Docker development container with opti
 
 ## Requirements
 
-- Docker
+- `Docker`
 - `whiptail`, used by the first-run installer prompt
 - `uuidgen`, used to generate container names
-- NVIDIA Container Toolkit, if you select CUDA support
 
 ## Usage
 
@@ -17,9 +16,12 @@ Run the sandbox with one or more project directories:
 ./code-sandbox <path/to/folder/1> <path/to/folder/2> ...
 ```
 
-The first time you run an image name, the script opens an interactive prompt where you choose which tools to install. It then builds the Docker image. If the image already exists, the script skips the build and starts a container from that image.
+The first time you run an image name, the script opens an interactive prompt where you choose which tools to install.
+It then builds the Docker image.
+If the image already exists, the script skips the build and starts a container from that image.
 
-Use `-i` or `--image` to select a specific image name. This is useful if you have multiple sandbox images, such as `my-cpu-sandbox` and `my-gpu-sandbox`.
+Use `-i` or `--image` to select a specific image name.
+This is useful if you have multiple sandbox images, such as `my-cpu-sandbox` and `my-gpu-sandbox`.
 
 ```sh
 ./code-sandbox -i <image-name> <path/to/folder/1> <path/to/folder/2> ...
@@ -42,7 +44,8 @@ On first run for a new image, you can choose any combination of:
 - `codex`: OpenAI Codex CLI
 - `latex`: full LaTeX installation
 
-If you select CUDA, set `CUDA_TAG` in `.env` before building. The Docker base image is built as `nvidia/cuda:${CUDA_TAG}-devel-ubuntu24.04`.
+If you select CUDA, you can specify the release version by setting the env var `CUDA_TAG` in `.env` before building.
+The Docker base image is built as `nvidia/cuda:${CUDA_TAG}-devel-ubuntu24.04`.
 
 ## Mount Layout
 
@@ -55,7 +58,9 @@ If you select CUDA, set `CUDA_TAG` in `.env` before building. The Docker base im
 
 ## Persistent Volumes
 
-Persistent paths are mounted only when the matching tool is installed in the image. The `.env` file controls the host path or Docker volume name used for each mount. If a value is empty, Docker creates or reuses the default named volume from the script.
+Persistent paths are mounted only when the matching tool is installed in the image.
+The `.env` file controls the host path or Docker volume name used for each mount.
+If a value is empty, Docker creates or reuses the default named volume from the script.
 
 ### uv
 
@@ -80,13 +85,14 @@ Persistent paths are mounted only when the matching tool is installed in the ima
 
 ## Auth Callback Port
 
-When opencode or Codex is installed, the script maps an auth callback port from the host to the container. It starts at `127.0.0.1:1455` and increments if that port is already used by another sandbox container.
+When opencode or Codex is installed, the script maps an auth callback port from the host to the container.
+It starts at `127.0.0.1:1455` and increments if that port is already used by another sandbox container.
 
 ## Sources
 
 - To check available options for the `opencode.json` see [config.json](https://opencode.ai/config.json)
-- In case you want to implement something like the `llm-wiki` idea, run `code-sanbox` specifying the path to your wiki folder. copy the generic [guidelines](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) into the llm prompt followed by something like:<br>
+- In case you want to implement something like the `llm-wiki` idea, run `code-sanbox` specifying the path to your wiki folder. copy the generic [guidelines](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) into the llm prompt followed by something like:
 
   ```
-  You are now my LLM WiKi agent. Implement this exact idea file as my complete second brain. Guide me step-by-step: create the CLAUDE.md schema file with full rules, set up index.md and log.md, define folder conventions. From now on, every interaction follows the schema.
+  You are now my LLM WiKi agent. Implement this idea. Create the CLAUDE.md schema file with full rules, set up index.md and log.md, define folder conventions. From now on, every interaction follows the schema.
   ```
