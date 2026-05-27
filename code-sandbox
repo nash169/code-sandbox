@@ -128,12 +128,12 @@ RUN_ARGS=(
   --name "code-sandbox_$(uuidgen | cut -d- -f1)"
 )
 
-[ $(docker-label ${CONTAINER_IMAGE} cuda) = true ] && \
+[ "$(docker-label "${CONTAINER_IMAGE}" cuda)" = true ] && \
   RUN_ARGS+=(
     --gpus all
   )
 
-[ $(docker-label ${CONTAINER_IMAGE} uv) = true ] && \
+[ "$(docker-label "${CONTAINER_IMAGE}" uv)" = true ] && \
   RUN_ARGS+=(
     -v "${UV_CONFIG:-uv_config}:${CONTAINER_HOME}/.config/uv"
     -v "${UV_SHARE:-uv_share}:${CONTAINER_HOME}/.local/share/uv"
@@ -146,16 +146,33 @@ while docker-port-busy "$HOST" "$AUTH_PORT"; do
     AUTH_PORT=$((AUTH_PORT+1))
 done
 
-[ $(docker-label ${CONTAINER_IMAGE} opencode)=true ] && \
+if [ "$(docker-label "${CONTAINER_IMAGE}" opencode)" = true ] || [ "$(docker-label "${CONTAINER_IMAGE}" codex)" = true ]; then
   RUN_ARGS+=(
     -p "${HOST}:${AUTH_PORT}:1456"
+  )
+fi
+
+[ "$(docker-label "${CONTAINER_IMAGE}" opencode)" = true ] && \
+  RUN_ARGS+=(
     -v "${OPENCODE_CONFIG:-opencode_config}:${CONTAINER_HOME}/.config/opencode"
     -v "${OPENCODE_SHARE:-opencode_share}:${CONTAINER_HOME}/.local/share/opencode"
     -v "${OPENCODE_CACHE:-opencode_cache}:${CONTAINER_HOME}/.cache/opencode"
   )
 
+[ "$(docker-label "${CONTAINER_IMAGE}" claudecode)" = true ] && \
+  RUN_ARGS+=(
+    -e "CLAUDE_CONFIG_DIR=${CONTAINER_HOME}/.claude"
+    -v "${CLAUDE_CODE_CONFIG:-claude_code_config}:${CONTAINER_HOME}/.claude"
+    -v "${CLAUDE_CODE_CACHE:-claude_code_cache}:${CONTAINER_HOME}/.cache/claude"
+  )
+
+[ "$(docker-label "${CONTAINER_IMAGE}" codex)" = true ] && \
+  RUN_ARGS+=(
+    -v "${CODEX_HOME:-codex_home}:${CONTAINER_HOME}/.codex"
+  )
+
 if [[ -z "${WORKSPACE-}" ]]; then
-  WORKSPACE="$(mktemp -d /tmp/ml_devel_session-XXXXXX)" || return 1
+  WORKSPACE="$(mktemp -d /tmp/code_sandbox_workspace-XXXXXX)" || return 1
   chmod 1777 "$WORKSPACE" || return 1
   echo $WORKSPACE
 fi
