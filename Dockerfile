@@ -15,13 +15,21 @@ RUN apt update && apt install -y --no-install-recommends \
     curl \
     socat \
     iproute2 \
+    bubblewrap \
     python3 \
     python3-pip \
     git \
+    ripgrep \
   && rm -rf /var/lib/apt/lists/*
 
 ARG LATEX_INSTALL=false
 LABEL latex=$LATEX_INSTALL
+
+RUN if [ "$LATEX_INSTALL" = "true" ]; then \
+      apt update && \
+      apt install -y texlive-full && \
+      rm -rf /var/lib/apt/lists/*; \
+    fi
 
 ARG OPENCODE_INSTALL=false
 LABEL opencode=$OPENCODE_INSTALL
@@ -32,13 +40,14 @@ LABEL claudecode=$CLAUDECODE_INSTALL
 
 ARG CODEX_INSTALL=false
 LABEL codex=$CODEX_INSTALL
+ENV CODEX_INSTALL=${CODEX_INSTALL}
 
 RUN cat > /usr/local/bin/docker-entrypoint.sh <<'EOF'
 #!/usr/bin/env bash
 set -e
 
 # OAuth callback helper (host localhost:1455 -> container :1455 -> loopback :1455)
-if [ "${OPENCODE_INSTALL}" = "true" ]; then
+if [ "${OPENCODE_INSTALL}" = "true" ] || [ "${CODEX_INSTALL}" = "true" ]; then
   socat TCP-LISTEN:1456,fork,reuseaddr TCP:127.0.0.1:1455 &
 fi
 
@@ -58,6 +67,7 @@ RUN if ! getent group ubuntu >/dev/null; then \
 USER ubuntu
 WORKDIR /home/ubuntu
 ENV HOME=/home/ubuntu
+ENV CLAUDE_CONFIG_DIR=/home/ubuntu/.claude
 ENV PATH="/home/ubuntu/.local/bin:${PATH}"
 
 ARG UV_INSTALL=false
@@ -73,11 +83,12 @@ RUN if [ "$OPENCODE_INSTALL" = "true" ]; then \
     fi
 
 RUN if [ "$CLAUDECODE_INSTALL" = "true" ]; then \
+      mkdir -p .claude .local/share/claude .cache/claude && \
       curl -fsSL https://claude.ai/install.sh | bash; \
     fi
 
 RUN if [ "$CODEX_INSTALL" = "true" ]; then \
-      mkdir -p .local/bin && \
+      mkdir -p .codex .local/bin && \
       export NVM_DIR="$HOME/.nvm" && \
       curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash && \
       bash -lc '. "$HOME/.nvm/nvm.sh" && nvm install --lts && npm i -g @openai/codex && for bin in node npm npx codex; do ln -sf "$NVM_BIN/$bin" "$HOME/.local/bin/$bin"; done'; \
