@@ -90,7 +90,7 @@ if ! docker image inspect "${CONTAINER_IMAGE}" >/dev/null 2>&1; then
     case $CHOICE in
       "cuda")
           BUILD_ARGS+=( --build-arg CUDA_INSTALL=true )
-          BASE_IMAGE="nvidia/cuda:${CUDA_TAG}-devel-ubuntu24.04"
+          BASE_IMAGE="nvidia/cuda:${CUDA_TAG:-"13.1.2"}-cudnn-devel-ubuntu24.04"
           ;;
       "uv")
           BUILD_ARGS+=( --build-arg UV_INSTALL=true )
