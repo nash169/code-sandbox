@@ -27,7 +27,14 @@ LABEL latex=$LATEX_INSTALL
 
 RUN if [ "$LATEX_INSTALL" = "true" ]; then \
       apt update && \
-      apt install -y texlive-full && \
+      apt install -y --no-install-recommends \
+        texlive \
+        texlive-latex-extra \
+        texlive-fonts-recommended \
+        texlive-science \
+        texlive-bibtex-extra \
+        biber \
+        latexmk && \
       rm -rf /var/lib/apt/lists/*; \
     fi
 
