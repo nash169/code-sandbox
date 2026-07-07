@@ -38,6 +38,31 @@ RUN if [ "$LATEX_INSTALL" = "true" ]; then \
       rm -rf /var/lib/apt/lists/*; \
     fi
 
+ARG NEOVIM_INSTALL=false
+LABEL neovim=$NEOVIM_INSTALL
+
+RUN if [ "$NEOVIM_INSTALL" = "true" ]; then \
+      apt update && \
+      apt install -y --no-install-recommends \
+        neovim \
+        build-essential \
+        cmake \
+        ninja-build \
+        pkg-config \
+        unzip \
+        tar \
+        gzip \
+        xclip \
+        wl-clipboard \
+        python3-venv \
+        python3-pynvim \
+        nodejs \
+        npm \
+        lua5.1 \
+        luarocks && \
+      rm -rf /var/lib/apt/lists/*; \
+    fi
+
 ARG OPENCODE_INSTALL=false
 LABEL opencode=$OPENCODE_INSTALL
 ENV OPENCODE_INSTALL=${OPENCODE_INSTALL}
@@ -82,6 +107,10 @@ LABEL uv=$UV_INSTALL
 RUN if [ "$UV_INSTALL" = "true" ]; then \
       mkdir -p .config/uv .cache/uv .local/share/uv && \
       curl -fsSL https://astral.sh/uv/install.sh | sh; \
+    fi
+
+RUN if [ "$NEOVIM_INSTALL" = "true" ]; then \
+      mkdir -p .config/nvim .local/share/nvim .local/state/nvim .cache/nvim; \
     fi
 
 RUN if [ "$OPENCODE_INSTALL" = "true" ]; then \

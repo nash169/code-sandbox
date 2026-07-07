@@ -82,6 +82,7 @@ if ! docker image inspect "${CONTAINER_IMAGE}" >/dev/null 2>&1; then
       "opencode" "opensource llm cli" OFF \
       "claude-code" "anthropic llm cli" OFF \
       "codex" "openai llm cli" OFF \
+      "neovim" "Neovim editor" OFF \
       "latex" "LaTeX" OFF 3>&1 1>&2 2>&3) || { echo "User exit"; exit; }
 
   for CHOICE in $CHOICES; do
@@ -103,6 +104,9 @@ if ! docker image inspect "${CONTAINER_IMAGE}" >/dev/null 2>&1; then
           ;;
       "codex")
           BUILD_ARGS+=( --build-arg CODEX_INSTALL=true )
+          ;;
+      "neovim")
+          BUILD_ARGS+=( --build-arg NEOVIM_INSTALL=true )
           ;;
       "latex")
           BUILD_ARGS+=( --build-arg LATEX_INSTALL=true )
@@ -138,6 +142,14 @@ RUN_ARGS=(
     -v "${UV_CONFIG:-uv_config}:${CONTAINER_HOME}/.config/uv"
     -v "${UV_SHARE:-uv_share}:${CONTAINER_HOME}/.local/share/uv"
     -v "${UV_CACHE:-uv_cache}:${CONTAINER_HOME}/.cache/uv"
+  )
+
+[ "$(docker-label "${CONTAINER_IMAGE}" neovim)" = true ] && \
+  RUN_ARGS+=(
+    -v "${NVIM_CONFIG:-nvim_config}:${CONTAINER_HOME}/.config/nvim"
+    -v "${NVIM_SHARE:-nvim_share}:${CONTAINER_HOME}/.local/share/nvim"
+    -v "${NVIM_STATE:-nvim_state}:${CONTAINER_HOME}/.local/state/nvim"
+    -v "${NVIM_CACHE:-nvim_cache}:${CONTAINER_HOME}/.cache/nvim"
   )
 
 HOST=127.0.0.1
