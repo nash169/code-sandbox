@@ -115,8 +115,6 @@ If a value is empty, Docker creates or reuses the default named volume from the 
 - `~/.local/state/nvim`
 - `~/.cache/nvim`
 
-Configured by `NEOVIM_CONFIG`, `NEOVIM_SHARE`, `NEOVIM_STATE`, and `NEOVIM_CACHE`.
-
 ## Auth Callback Port
 
 When opencode or Codex is installed, the script maps an auth callback port from the host to the container.
