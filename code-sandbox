@@ -1,10 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Auto-load .env if present
-if [[ -f .env ]]; then
+COMMAND_NAME="$(basename "$0")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+DEFAULT_DATA_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/code-sandbox"
+DEFAULT_CONFIG_FILE="${XDG_CONFIG_HOME:-${HOME}/.config}/code-sandbox/.env"
+
+if [[ -n "${CODE_SANDBOX_DATA_DIR-}" ]]; then
+  DATA_DIR="$CODE_SANDBOX_DATA_DIR"
+elif [[ -f "${DEFAULT_DATA_DIR}/Dockerfile" ]]; then
+  DATA_DIR="$DEFAULT_DATA_DIR"
+else
+  DATA_DIR="$SCRIPT_DIR"
+fi
+
+DOCKERFILE="${DATA_DIR}/Dockerfile"
+
+if [[ -n "${CODE_SANDBOX_CONFIG-}" ]]; then
+  CONFIG_FILE="$CODE_SANDBOX_CONFIG"
+elif [[ -f "$DEFAULT_CONFIG_FILE" ]]; then
+  CONFIG_FILE="$DEFAULT_CONFIG_FILE"
+else
+  CONFIG_FILE="${SCRIPT_DIR}/.env"
+fi
+
+# Auto-load config if present
+if [[ -f "$CONFIG_FILE" ]]; then
   set -a
-  source .env
+  source "$CONFIG_FILE"
   set +a
 fi
 
@@ -22,8 +45,8 @@ docker-port-busy() {
 CONTAINER_IMAGE="code-sandbox"
 
 usage() {
-  cat <<'EOF'
-Usage: code-sandbox [options] [project-path...]
+  cat <<EOF
+Usage: ${COMMAND_NAME} [options] [project-path...]
 
 Options:
   -i, --image NAME  Use a specific Docker image name
@@ -65,6 +88,12 @@ fi
 
 if ! docker image inspect "${CONTAINER_IMAGE}" >/dev/null 2>&1; then
   whiptail --title "Code Sandbox" --yesno "Install Code Sandbox?" 8 78 || { echo "User exit"; exit; }
+
+  if [[ ! -f "$DOCKERFILE" ]]; then
+    echo "Error: Dockerfile not found: $DOCKERFILE" >&2
+    echo "Run ./install or set CODE_SANDBOX_DATA_DIR to the installed data directory." >&2
+    exit 1
+  fi
 
   BASE_IMAGE="ubuntu:24.04"
 
@@ -119,8 +148,9 @@ if ! docker image inspect "${CONTAINER_IMAGE}" >/dev/null 2>&1; then
   )
 
   docker "${BUILD_ARGS[@]}" \
+    -f "${DOCKERFILE}" \
     -t "${CONTAINER_IMAGE}" \
-    .
+    "${DATA_DIR}"
 fi
 
 CONTAINER_HOME=/home/ubuntu

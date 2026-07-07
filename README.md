@@ -8,12 +8,36 @@ Code Sandbox builds and runs a disposable Docker development container with opti
 - `whiptail`, used by the first-run installer prompt
 - `uuidgen`, used to generate container names
 
+## Install
+
+Install the launcher as `sandbox` and copy its bundled files into XDG paths:
+
+```sh
+./install
+```
+
+This creates:
+
+- `~/.local/bin/sandbox`
+- `~/.local/share/code-sandbox/Dockerfile`
+- `~/.config/code-sandbox/.env`
+
+The installer does not overwrite an existing config file.
+
+You can override the install locations with:
+
+- `CODE_SANDBOX_BIN_DIR`
+- `CODE_SANDBOX_BIN_NAME`
+- `CODE_SANDBOX_DATA_DIR`
+- `CODE_SANDBOX_CONFIG_DIR`
+- `CODE_SANDBOX_CONFIG`
+
 ## Usage
 
 Run the sandbox with one or more project directories:
 
 ```sh
-./code-sandbox <path/to/folder/1> <path/to/folder/2> ...
+sandbox <path/to/folder/1> <path/to/folder/2> ...
 ```
 
 The first time you run an image name, the script opens an interactive prompt where you choose which tools to install.
@@ -24,13 +48,13 @@ Use `-i` or `--image` to select a specific image name.
 This is useful if you have multiple sandbox images, such as `my-cpu-sandbox` and `my-gpu-sandbox`.
 
 ```sh
-./code-sandbox -i <image-name> <path/to/folder/1> <path/to/folder/2> ...
+sandbox -i <image-name> <path/to/folder/1> <path/to/folder/2> ...
 ```
 
 Show help:
 
 ```sh
-./code-sandbox --help
+sandbox --help
 ```
 
 ## Install Choices
@@ -45,13 +69,13 @@ On first run for a new image, you can choose any combination of:
 - `neovim`: Neovim plus common plugin/runtime dependencies
 - `latex`: full LaTeX installation
 
-If you select CUDA, you can specify the release version by setting the env var `CUDA_TAG` in `.env` before building.
+If you select CUDA, you can specify the release version by setting the env var `CUDA_TAG` in `~/.config/code-sandbox/.env` before building.
 The Docker base image is built as `nvidia/cuda:${CUDA_TAG}-devel-ubuntu24.04`.
 
 ## Mount Layout
 
 - The container starts in `/workspace`.
-- `WORKSPACE` from `.env` is mounted at `/workspace`.
+- `WORKSPACE` from the config file is mounted at `/workspace`.
 - If `WORKSPACE` is empty, the script creates a temporary host directory under `/tmp/code_sandbox_workspace-*` and mounts it at `/workspace`.
 - Each project path passed on the command line is mounted at `/home/ubuntu/<folder-name>`.
 - Project paths must be directories.
@@ -60,7 +84,7 @@ The Docker base image is built as `nvidia/cuda:${CUDA_TAG}-devel-ubuntu24.04`.
 ## Persistent Volumes
 
 Persistent paths are mounted only when the matching tool is installed in the image.
-The `.env` file controls the host path or Docker volume name used for each mount.
+The config file controls the host path or Docker volume name used for each mount.
 If a value is empty, Docker creates or reuses the default named volume from the script.
 
 ### uv
