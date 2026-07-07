@@ -176,10 +176,10 @@ RUN_ARGS=(
 
 [ "$(docker-label "${CONTAINER_IMAGE}" neovim)" = true ] && \
   RUN_ARGS+=(
-    -v "${NVIM_CONFIG:-nvim_config}:${CONTAINER_HOME}/.config/nvim"
-    -v "${NVIM_SHARE:-nvim_share}:${CONTAINER_HOME}/.local/share/nvim"
-    -v "${NVIM_STATE:-nvim_state}:${CONTAINER_HOME}/.local/state/nvim"
-    -v "${NVIM_CACHE:-nvim_cache}:${CONTAINER_HOME}/.cache/nvim"
+    -v "${NEOVIM_CONFIG:-${NVIM_CONFIG:-nvim_config}}:${CONTAINER_HOME}/.config/nvim"
+    -v "${NEOVIM_SHARE:-${NVIM_SHARE:-nvim_share}}:${CONTAINER_HOME}/.local/share/nvim"
+    -v "${NEOVIM_STATE:-${NVIM_STATE:-nvim_state}}:${CONTAINER_HOME}/.local/state/nvim"
+    -v "${NEOVIM_CACHE:-${NVIM_CACHE:-nvim_cache}}:${CONTAINER_HOME}/.cache/nvim"
   )
 
 HOST=127.0.0.1
