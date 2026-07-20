@@ -44,7 +44,6 @@ LABEL neovim=$NEOVIM_INSTALL
 RUN if [ "$NEOVIM_INSTALL" = "true" ]; then \
       apt update && \
       apt install -y --no-install-recommends \
-        neovim \
         build-essential \
         cmake \
         ninja-build \
@@ -60,7 +59,18 @@ RUN if [ "$NEOVIM_INSTALL" = "true" ]; then \
         npm \
         lua5.1 \
         luarocks && \
-      rm -rf /var/lib/apt/lists/*; \
+      rm -rf /var/lib/apt/lists/* && \
+      case "$(dpkg --print-architecture)" in \
+        amd64) nvim_arch=x86_64 ;; \
+        arm64) nvim_arch=arm64 ;; \
+        *) echo "Unsupported architecture for Neovim" >&2; exit 1 ;; \
+      esac && \
+      curl -fsSL "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${nvim_arch}.tar.gz" \
+        -o /tmp/nvim-linux.tar.gz && \
+      mkdir -p /opt/nvim && \
+      tar -xzf /tmp/nvim-linux.tar.gz -C /opt/nvim --strip-components=1 && \
+      ln -s /opt/nvim/bin/nvim /usr/local/bin/nvim && \
+      rm /tmp/nvim-linux.tar.gz; \
     fi
 
 ARG OPENCODE_INSTALL=false
