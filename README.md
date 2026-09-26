@@ -1,6 +1,6 @@
 # Code Sandbox
 
-Code Sandbox builds and runs a disposable Docker development container with optional tools such as CUDA, uv, opencode, Claude Code, Codex, Neovim, and LaTeX.
+Code Sandbox builds and runs a disposable Docker development container with optional tools such as CUDA, uv, opencode, Claude Code, Codex, Pi, Neovim, and LaTeX.
 
 ## Requirements
 
@@ -66,6 +66,7 @@ On first run for a new image, you can choose any combination of:
 - `opencode`: opencode CLI
 - `claude-code`: Claude Code CLI
 - `codex`: OpenAI Codex CLI
+- `pi`: pi.dev coding agent harness
 - `neovim`: Neovim plus common plugin/runtime dependencies
 - `latex`: full LaTeX installation
 
@@ -108,12 +109,24 @@ If a value is empty, Docker creates or reuses the default named volume from the 
 
 - `~/.codex`
 
+### pi
+
+- `~/.pi/agent`
+
 ### neovim
 
 - `~/.config/nvim`
 - `~/.local/share/nvim`
 - `~/.local/state/nvim`
 - `~/.cache/nvim`
+
+### latex
+
+- `~/.config/latexmk`
+
+Set `LATEXMK_CONFIG=./config/latexmk` to mount a host directory containing
+`latexmkrc`. Relative host paths are resolved from the directory where
+`sandbox` is run.
 
 ## Auth Callback Port
 

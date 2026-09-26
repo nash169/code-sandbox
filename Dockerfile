@@ -84,6 +84,9 @@ ARG CODEX_INSTALL=false
 LABEL codex=$CODEX_INSTALL
 ENV CODEX_INSTALL=${CODEX_INSTALL}
 
+ARG PI_INSTALL=false
+LABEL pi=$PI_INSTALL
+
 RUN cat > /usr/local/bin/docker-entrypoint.sh <<'EOF'
 #!/usr/bin/env bash
 set -e
@@ -119,6 +122,10 @@ RUN if [ "$UV_INSTALL" = "true" ]; then \
       curl -fsSL https://astral.sh/uv/install.sh | sh; \
     fi
 
+RUN if [ "$LATEX_INSTALL" = "true" ]; then \
+      mkdir -p .config/latexmk; \
+    fi
+
 RUN if [ "$NEOVIM_INSTALL" = "true" ]; then \
       mkdir -p .config/nvim .local/share/nvim .local/state/nvim .cache/nvim; \
     fi
@@ -133,11 +140,21 @@ RUN if [ "$CLAUDECODE_INSTALL" = "true" ]; then \
       curl -fsSL https://claude.ai/install.sh | bash; \
     fi
 
-RUN if [ "$CODEX_INSTALL" = "true" ]; then \
-      mkdir -p .codex .local/bin && \
+RUN if [ "$CODEX_INSTALL" = "true" ] || [ "$PI_INSTALL" = "true" ]; then \
+      mkdir -p .local/bin && \
       export NVM_DIR="$HOME/.nvm" && \
       curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash && \
-      bash -lc '. "$HOME/.nvm/nvm.sh" && nvm install --lts && npm i -g @openai/codex && for bin in node npm npx codex; do ln -sf "$NVM_BIN/$bin" "$HOME/.local/bin/$bin"; done'; \
+      bash -lc '. "$HOME/.nvm/nvm.sh" && nvm install --lts && for bin in node npm npx; do ln -sf "$NVM_BIN/$bin" "$HOME/.local/bin/$bin"; done'; \
+    fi
+
+RUN if [ "$CODEX_INSTALL" = "true" ]; then \
+      mkdir -p .codex && \
+      bash -lc '. "$HOME/.nvm/nvm.sh" && npm install -g @openai/codex && ln -sf "$NVM_BIN/codex" "$HOME/.local/bin/codex"'; \
+    fi
+
+RUN if [ "$PI_INSTALL" = "true" ]; then \
+      mkdir -p .pi/agent && \
+      bash -lc '. "$HOME/.nvm/nvm.sh" && npm install -g --ignore-scripts @earendil-works/pi-coding-agent && ln -sf "$NVM_BIN/pi" "$HOME/.local/bin/pi"'; \
     fi
 
 
