@@ -30,6 +30,7 @@ RUN if [ "$LATEX_INSTALL" = "true" ]; then \
       apt install -y --no-install-recommends \
         texlive \
         texlive-latex-extra \
+        texlive-plain-generic \
         texlive-fonts-recommended \
         texlive-science \
         texlive-bibtex-extra \
