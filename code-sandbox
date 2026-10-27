@@ -15,6 +15,7 @@ else
 fi
 
 DOCKERFILE="${DATA_DIR}/Dockerfile"
+SKILLS_DIR="${DATA_DIR}/llm-skills"
 
 if [[ -n "${CODE_SANDBOX_CONFIG-}" ]]; then
   CONFIG_FILE="$CODE_SANDBOX_CONFIG"
@@ -40,6 +41,15 @@ docker-port-busy() {
     local PORT=$2
     docker ps --format '{{.Ports}}' | grep -qE "(^|[ ,])${HOST}:${PORT}->" && return 0
     return 1
+}
+
+# Mount each skill read-only into a harness skills directory
+add-skills() {
+  local skill
+  for skill in "${SKILLS_DIR}"/*/; do
+    [[ -f "${skill}SKILL.md" ]] || continue
+    RUN_ARGS+=( -v "${skill%/}:${1}/$(basename "$skill"):ro" )
+  done
 }
 
 CONTAINER_IMAGE="code-sandbox"
@@ -121,7 +131,7 @@ if ! docker image inspect "${CONTAINER_IMAGE}" >/dev/null 2>&1; then
     case $CHOICE in
       "cuda")
           BUILD_ARGS+=( --build-arg CUDA_INSTALL=true )
-          BASE_IMAGE="nvidia/cuda:${CUDA_TAG:-"13.1.2"}-cudnn-devel-ubuntu24.04"
+          BASE_IMAGE="nvidia/cuda:${CUDA_TAG:-"13.4.3-cudnn-devel-ubuntu26.04"}"
           ;;
       "uv")
           BUILD_ARGS+=( --build-arg UV_INSTALL=true )
@@ -169,6 +179,7 @@ RUN_ARGS=(
 [ "$(docker-label "${CONTAINER_IMAGE}" cuda)" = true ] && \
   RUN_ARGS+=(
     --gpus all
+    # --device nvidia.com/gpu=all
   )
 
 [ "$(docker-label "${CONTAINER_IMAGE}" uv)" = true ] && \
@@ -226,6 +237,11 @@ fi
   RUN_ARGS+=(
     -v "${PI_AGENT_HOME:-pi_agent_home}:${CONTAINER_HOME}/.pi/agent"
   )
+
+[ "$(docker-label "${CONTAINER_IMAGE}" opencode)" = true ] && add-skills "${CONTAINER_HOME}/.config/opencode/skills"
+[ "$(docker-label "${CONTAINER_IMAGE}" claudecode)" = true ] && add-skills "${CONTAINER_HOME}/.claude/skills"
+[ "$(docker-label "${CONTAINER_IMAGE}" codex)" = true ] && add-skills "${CONTAINER_HOME}/.agents/skills"
+[ "$(docker-label "${CONTAINER_IMAGE}" pi)" = true ] && add-skills "${CONTAINER_HOME}/.pi/agent/skills"
 
 if [[ -z "${WORKSPACE-}" ]]; then
   WORKSPACE="$(mktemp -d /tmp/code_sandbox_workspace-XXXXXX)" || return 1

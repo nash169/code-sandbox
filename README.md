@@ -20,9 +20,11 @@ This creates:
 
 - `~/.local/bin/sandbox`
 - `~/.local/share/code-sandbox/Dockerfile`
+- `~/.local/share/code-sandbox/llm-skills/`
 - `~/.config/code-sandbox/.env`
 
 The installer does not overwrite an existing config file.
+It replaces the installed skills with the ones in `llm-skills/`, so re-run it after editing a skill.
 
 You can override the install locations with:
 
@@ -127,6 +129,25 @@ If a value is empty, Docker creates or reuses the default named volume from the 
 Set `LATEXMK_CONFIG=./config/latexmk` to mount a host directory containing
 `latexmkrc`. Relative host paths are resolved from the directory where
 `sandbox` is run.
+
+## LLM Skills
+
+Each folder in `llm-skills/` containing a `SKILL.md` is mounted read-only into the skills directory of every installed harness:
+
+- opencode: `~/.config/opencode/skills/<skill>`
+- claude-code: `~/.claude/skills/<skill>`
+- codex: `~/.agents/skills/<skill>`
+- pi: `~/.pi/agent/skills/<skill>`
+
+Skills are mounted individually, so skills created inside the persistent harness volumes stay visible.
+No image rebuild is needed after changing skills.
+
+Available skills:
+
+- `coding-guidelines`: behavioral guidelines for writing, reviewing, and refactoring code
+- `uv-environment`: run Python through the agent-only `.venv-code` uv environment
+- `jupytext-sync`: keep jupytext-paired `.py` scripts and `.ipynb` notebooks in sync
+- `markdown-export`: export the chat as a formatting-faithful Markdown transcript
 
 ## Auth Callback Port
 

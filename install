@@ -13,6 +13,8 @@ mkdir -p "$BIN_DIR" "$DATA_DIR" "$(dirname "$CONFIG_FILE")"
 
 install -m 755 "${SCRIPT_DIR}/code-sandbox" "${BIN_DIR}/${BIN_NAME}"
 install -m 644 "${SCRIPT_DIR}/Dockerfile" "${DATA_DIR}/Dockerfile"
+rm -rf "${DATA_DIR}/llm-skills"
+cp -r "${SCRIPT_DIR}/llm-skills" "${DATA_DIR}/llm-skills"
 
 if [[ ! -f "$CONFIG_FILE" ]]; then
   install -m 600 "${SCRIPT_DIR}/.env" "$CONFIG_FILE"
@@ -25,6 +27,7 @@ Installed ${BIN_NAME}.
 
 Executable: ${BIN_DIR}/${BIN_NAME}
 Dockerfile: ${DATA_DIR}/Dockerfile
+Skills:     ${DATA_DIR}/llm-skills
 Config:     ${CONFIG_FILE}
 
 Make sure ${BIN_DIR} is in your PATH, then run:
